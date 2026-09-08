@@ -46,7 +46,7 @@
 
 ### 2. 失败尝试一：SQL 注入（无效）
 
-工单的 name 字段被拼进页面，怀疑存在 SQL 注入。尝试在昵称中注入 `o'neil`，提交后工单正常创建（`302 -> /ticket/5`），页面中名字被原样输出且转义为 `o&#39;neil`，无报错、无注入痕迹：
+工单的 name 字段被拼进页面，怀疑存在 SQL 注入。尝试在昵称中注入 `o'neil`，提交后工单正常创建（`302 -> /ticket/5`），响应源码中名字被转义为 `o&#39;neil`，无报错、无注入痕迹：
 
 ![sqli尝试-o-neil用户名](screenshots/06-sqli尝试-o-neil用户名.png)
 
@@ -60,7 +60,7 @@
 
 ![xss尝试-script标签payload](screenshots/08-xss尝试-script标签payload.png)
 
-但工单页显示时脚本被完全转义为文本（`&gt;(function(){...}&lt;/script&gt;`），未被执行：
+但工单页上脚本并未执行，而是以纯文本形式展示——注意开头整串 `<script` 已被服务端删除，只剩下 `>(function(){...}</script>`：
 
 ![xss失败-script被转义](screenshots/09-xss失败-script被转义.png)
 
@@ -88,9 +88,11 @@ s>alert(1)</scripts>
 
 ![发现13142-web终端](screenshots/12-发现13142-web终端.png)
 
-登录后 `whoami` 为 `ctf`，查看 `/home/ctf` 只有 `.bashrc`、`.profile` 等普通配置文件，无 flag：
+登录后 `whoami` 为 `ctf`，`pwd` 为 `/home/ctf`，`ls -la` 只有 `.bash_logout`、`.bashrc`、`.profile` 等普通配置文件，无 flag：
 
 ![web终端查看home目录](screenshots/13-web终端查看home目录.png)
+
+（图 12 为完整终端会话截图，图 13 为目录列表的放大视图）
 
 判断该终端只是环境配套容器，不是本题攻击面。
 
@@ -103,14 +105,20 @@ s>alert(1)</scripts>
   - `onerror` 子串被**删除**（大小写不敏感，`onError` 同样被删）；
   - `<`、`>`、`"`、`'` 在渲染时被 HTML 转义。
 
-  ![过滤分析-script标签与onerror被删](screenshots/14-过滤分析-script标签与onerror被删.png)
-- 提交 `body=<svg onload=alert(3)><a href=javascript:alert(10)>...`：
-  - `<svg onload>` 完整保留（仅被转义）、`javascript:` 协议保留、`onload` 保留；
-  - `<iframe srcdoc="<script>...">` 中内层的 `<script` 同样被删。
+![过滤分析-script标签与onerror被删](screenshots/14-过滤分析-script标签与onerror被删.png)
 
-  ![过滤分析-svg的onload与javascript保留](screenshots/15-过滤分析-svg的onload与javascript保留.png)
+（对应工单 #2，发起人 xstest）
 
-**推论**：服务端特意维护了一个"删除 `<script` / `onerror`"的黑名单过滤器，而且从 `<scripts>` 只剩 `s>` 的实验可以确认，它删的是**子串**而非标签。若所有页面都像用户工单页一样做 HTML 转义渲染，这种黑名单删除毫无必要——它必然是为了防住某个**以不安全方式渲染用户内容**的页面，也就是客服工作台（`|safe` / innerHTML 渲染）。同时，黑名单只删 `<script` 和 `onerror`，其他标签与事件（`svg`、`onload`、`ontoggle`、`javascript:` 等）全部放行，说明可以轻松绕过。
+- 提交 `body=<img onload=alert(9)><a href=javascript:alert(10)><link><iframe srcdoc="<script>alert(11)</script>"></iframe><img src=x onerror=alert(12)>`，工单页显示为 `<img onload=alert(9)><a href=javascript:alert(10)><link><iframe srcdoc=">alert(11)</script>"></iframe><img src=x =alert(12)>`：
+  - `onload` 事件与 `javascript:` 协议完整保留（仅被转义）；
+  - `<iframe srcdoc="<script>...">` 中内层的 `<script` 同样被删；
+  - `onerror` 依旧被删（`<img src=x =alert(12)>`）。
+
+![过滤分析-svg的onload与javascript保留](screenshots/15-过滤分析-svg的onload与javascript保留.png)
+
+（对应工单 #4，发起人 nn）
+
+**推论**：服务端特意维护了一个"删除 `<script` / `onerror`"的黑名单过滤器，而且从 `<scripts>` 只剩 `s>` 的实验可以确认，它删的是**子串**而非标签。若所有页面都像用户工单页一样做 HTML 转义渲染，这种黑名单删除毫无必要——它必然是为了防住某个**以不安全方式渲染用户内容**的页面，也就是客服工作台（`|safe` / innerHTML 渲染）。同时，黑名单只删 `<script` 和 `onerror`，其他标签与事件（`svg`、`onload`、`ontoggle`、`onfocus`、`javascript:` 等）全部放行，说明可以轻松绕过。
 
 ### 6. 绕过成功：`<svg onload>` 打通回传
 
@@ -132,7 +140,7 @@ PWN-SVG-1788878721554
 
 **结论确认**：① 客服确实会（自动）查看该工单；② 客服工作台以未转义方式渲染工单内容，`<svg onload>` 在客服浏览器中执行；③ 工单内的同源 fetch 回复接口可作为回传通道。
 
-> 更早一次运行（工单 #5）用同样思路先验证过这一点，当时客服回复的是 `PWN-SVG2X-…`：
+> 更早一次运行（工单 #5，发起人 `test9`）也验证过这一点。当时在同一工单里塞了 4 个变体 payload（`<svg onload>`、`<details open ontoggle>`、`<input autofocus onfocus>`、`<svg/onload>`），其中 `<svg/onload>` 与 `<svg onload>` 两个执行成功，工单里收到两条客服回复：`PWN-SVG2X-1788865744114`（`<svg/onload>`）与 `PWN-SVG-1788865744124`（`<svg onload>`）：
 
 > ![xss回传命中-svg-onload](screenshots/16-xss回传命中-svg-onload.png)
 
@@ -160,7 +168,7 @@ for (let i = 0; i < h.length; i += c) {
 
 ![工单21-htmlseg分段回传](screenshots/23-工单21-htmlseg分段回传.png)
 
-> 更早一次运行（工单 #7）用的是 1600 字符分块，收到 4 段 `HTMLSEG-0/1600/3200/4800`：
+> 更早一次运行（工单 #7，发起人 `test9`）用的是 1600 字符分块（payload 中工单 id 还是硬编码的 `/ticket/7/reply`），收到 4 段 `HTMLSEG-0/1600/3200/4800`：
 
 > ![工作台dom分段回传](screenshots/17-工作台dom分段回传.png)
 
@@ -174,7 +182,7 @@ for (let i = 0; i < h.length; i += c) {
 
 ![ai还原完整html](screenshots/25-ai还原完整html.png)
 
-> 注意：AI 的"还原"是**可读性优先的重建**，并非逐字节照抄——它给取不到的 `/s.css` 补了一段模拟样式，还把页面标题改写成了「聊天界面 · 社交面板」；而回传数据里解出的原始标题其实是「客服工作台 · 社交平台」（尾部 `…5Lqk5bmz5Y+wPC90aXRsZT4K` 即 `社交平台</title>`）。因此重建页面的排版细节可能与原页面有出入，但其中的密钥字符串是原样保留的。
+> 注意：AI 的"还原"是**可读性优先的重建**，并非逐字节照抄——它给取不到的 `/s.css` 补了一段模拟样式，还把页面标题改写成了「聊天界面 · 社交面板」；而回传数据的首段解码结果是 `<!DOCTYPE html><html><title>viewport</title>...`（页面 head 里 title 就写着 `viewport`，模板遗留写法），完整拼接解码后的尾部是 `…5Lqk5bmz5Y+wPC90aXRsZT4K`（即 `社交平台</title>`）。因此重建页面的排版细节可能与原页面有出入，但其中的密钥字符串是原样保留的。
 
 ### 9. 找到内部工单密钥
 
@@ -186,11 +194,11 @@ for (let i = 0; i < h.length; i += c) {
 
 ![还原源码中找到密钥](screenshots/26-还原源码中找到密钥.png)
 
-> 更早一次运行还原出的页面里是同一个密钥：
+> 更早一次运行（工单 #7）中，客服工作台页面本身：顶部绿色「内部视图」模块直接展示着「本次会话内部工单密钥」，与上面还原出的密钥相同（页签为「工单 #7 · 待处理」，下方是 test9 的来信）：
 
 > ![客服工作台-内部工单密钥](screenshots/18-客服工作台-内部工单密钥.png)
 
-**辅助确认**：执行 `location.href` 回传，确认客服工作台真实地址为 `http://127.0.0.1/agent/ticket/8`（客服容器内访问）；从外部直接访问 `http://172.17.0.13:13705/agent/ticket/8` 返回 **403**，印证"普通用户无法访问"：
+**辅助确认**：执行 `location.href` 回传（工单 #8，发起人 `t`），确认客服工作台真实地址为 `http://127.0.0.1/agent/ticket/8`（客服容器内访问）；从外部直接访问 `http://172.17.0.13:13705/agent/ticket/8` 返回 **403**，印证"普通用户无法访问"：
 
 ![工作台URL确认-agent路径](screenshots/19-工作台URL确认-agent路径.png)
 
