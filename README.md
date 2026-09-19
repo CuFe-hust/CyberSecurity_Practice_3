@@ -47,6 +47,31 @@ CyberSecurity_3/
 - 若题目环境基于公开靶机（如 DVWA、在线 CTF 平台），均为课程授权范围。
 - Writeups are for learning purposes only. Do not use them for unauthorized testing.
 
+## 本地配置 / Local Configuration
+
+仓库中**不保存任何平台地址与账号凭据**。调用课程教学问答平台所需的连接信息放在本地未跟踪目录 `.local/`（已在 `.gitignore` 中忽略）：
+
+| 文件 | 用途 |
+| --- | --- |
+| `.local/qa-platform.env` | 连接配置：`PLATFORM_BASE`（平台根地址，不含末尾斜杠）、`PLATFORM_USER`、`PLATFORM_PASS` |
+| `.local/qa-platform.md` | 凭据备注，人类阅读（含踩坑记录） |
+| `.local/qa-cookies.txt` | 登录后的会话 cookie，由 `curl -c` 自动写入，24 小时过期 |
+
+首次使用：创建 `.local/` 并填入实际信息。
+
+```bash
+mkdir -p .local
+cat > .local/qa-platform.env <<'EOF'
+PLATFORM_BASE='http://<平台地址>'
+PLATFORM_USER='<账号>'
+PLATFORM_PASS='<口令>'
+EOF
+```
+
+脚本载入方式：`set -a; . .local/qa-platform.env; set +a`。接口说明与调用示例见 `AGENTS.md` 的「教学问答平台（Qwen2.5）调用方法」一节。
+
+Connection details and credentials for the course Q&A platform live only in the untracked `.local/` directory and are never committed. See `AGENTS.md` for the API usage.
+
 ## 进度 / Progress
 
 - [x] 1-1 仿冒官方账号读私信（Unicode 归一化不一致 / 全角字符绕过）
