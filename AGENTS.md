@@ -66,6 +66,64 @@
 - 命名格式：`NN-步骤简述.png`（编号两位递增，如 `01-register-success-f12.png`）。
 - 截图从剪贴板临时目录（`/var/folders/.../pi-clipboard-*.png`）拷入仓库时，必须重命名为符合约定的文件名，不得使用原始随机文件名。
 
+### Agent 自动截图方法（无 GUI 权限时）
+
+本机为 macOS，装有 Google Chrome，但 Agent 进程**没有屏幕录制权限**：`screencapture -x out.png` 会报 `could not create image from display`，`open -a "Google Chrome" URL` 能拉起浏览器却也截不到屏。因此不要尝试截取真实桌面/浏览器窗口，改用**无头 Chrome（playwright-core 驱动系统已装的 Chrome）**截取页面。
+
+一次性准备（脚本与输出放仓库外的临时目录，避免入库）：
+
+```bash
+mkdir -p /tmp/shot && cd /tmp/shot && npm init -y && npm i playwright-core
+```
+
+脚本模板（`/tmp/shot/shots.mjs`，登录 + 截图）：
+
+```js
+import { chromium } from 'playwright-core';
+const B = 'http://172.17.0.13:12031';                 // 靶机地址
+const browser = await chromium.launch({
+  channel: 'chrome', headless: true,                  // 用系统 Chrome，无需下载浏览器
+  args: ['--no-proxy-server'],                        // 必须：本机代理变量指向未启动的 127.0.0.1:7897
+});
+const ctx = await browser.newContext({
+  viewport: { width: 1280, height: 900 }, deviceScaleFactor: 2,   // 2 倍缩放，截图更清晰
+});
+const page = await ctx.newPage();
+await page.goto(B + '/login', { waitUntil: 'networkidle' });
+await page.fill('input[name=username]', 'USER');       // 按实际表单字段名填写
+await page.fill('input[name=password]', 'PASS');
+await Promise.all([page.waitForURL('**/dev'), page.click('button.btn')]);
+await page.goto(B + '/dev', { waitUntil: 'networkidle' });
+await page.screenshot({ path: '/tmp/shot/out/03-dev-center.png', fullPage: true });
+await browser.close();
+```
+
+运行：`cd /tmp/shot && node shots.mjs`（用 `.mjs` 后缀即可在顶层写 await）。
+
+常用场景：
+
+- **需要 `Authorization` 头才能访问的接口**（如 `/api/me`）：新建 context 带上请求头，再导航到接口 URL，Chrome 会把原始 JSON 渲染成页面，截图同时保留真实 URL 与响应体：
+  ```js
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2, extraHTTPHeaders: { Authorization: 'Bearer ' + token } });
+  await (await ctx.newPage()).goto(B + '/api/me', { waitUntil: 'networkidle' });
+  ```
+- **长页面 / 长对话**：整页用 `page.screenshot({ fullPage: true })`；只截局部时先用 `page.evaluate(() => el.scrollIntoView({ block: 'end' }))` 滚到目标区块（教学问答平台的对话在 `#log` 内，可设 `#log.scrollTop = #log.scrollHeight`）。
+- **等待流式输出**（教学问答平台）：轮询 `#log` 文本长度，连续数秒不再增长且明显长于提问前再截图；上一条回答还在生成（`#status` 显示「生成中…」）时点击发送会无效。
+- **登录态复用**：同一 `context` 内页面共享 cookie；跨 context 需重新登录。
+
+兜底方案（无需登录的页面），直接用 Chrome 自带无头截图：
+
+```bash
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new \
+  --no-proxy-server --window-size=1280,900 --screenshot=/tmp/x.png URL
+```
+
+注意事项：
+
+- 无头截图**不含浏览器地址栏/标签页**；writeup 需要展示地址栏时应请用户手动截图。
+- 截图后必须核对内容（文件已生成、画面确为期望步骤、登录态正确），再按 `NN-步骤简述.png` 命名拷入题目目录；用户从剪贴板粘贴的图（`/var/folders/.../codex-clipboard-*.png`）同样要重命名为约定格式。
+- 后台常驻脚本（`nohup ... &`）在会话结束后可能被回收，需要长时间轮询（如等待靶机 bot）时改用交互式会话持续运行。
+
 ## 工作流程
 
 ### 角色 A（Writeup 撰写者）
@@ -142,3 +200,64 @@ curl -sS -N -m 90 --noproxy '*' -b .local/qa-cookies.txt \
 - 单次回答上限 **1024 token**，被截断时可追加「请继续」。
 - 会话变长后模型只保留最近约 **30%** 上下文，长任务应另开 `conversation_id`。
 - 上传文件上限 2MB，抽出文本上限约 2400 字（超出只保留开头）。
+
+## 实训平台（VMCourse）题目与实例调用方法
+
+课程题目与靶机实例都在实训平台上，同样可以用脚本直接调用，不必开浏览器。
+
+- **平台根地址存放在 `.local/vmc-platform.env` 的 `VMC_BASE`（实训平台「VMCourse / 国产化教学实训平台」，本机直连地址也在该文件）**，前端是 Vue 单页应用，页面内容全部由 `/api/*` 接口渲染。
+- 账号口令与教学问答平台相同（取自 `.local/qa-platform.env` 的 `PLATFORM_USER` / `PLATFORM_PASS`），但**两者不是同一个服务**（地址见 `.local/`），会话互不相通。
+- 站点使用自签名证书，curl 需加 `-k`；访问一律加 `--noproxy '*'`；沙箱内网络受限，相关命令需以非沙箱权限（`require_escalated`）执行。
+- 登录后的 `SESSIONID` cookie 存到 `.local/vmc-cookies.txt`（有效期 2 天），与账号口令一样**只放 `.local/`，禁止写入任何被跟踪的文件**。
+
+### 登录
+
+```bash
+set -a; . .local/qa-platform.env; . .local/vmc-platform.env; set +a
+curl -sS -k --noproxy '*' -m 25 -c .local/vmc-cookies.txt \
+  -X POST "$VMC_BASE/api/login" \
+  -H 'Content-Type: application/json' \
+  --data "{\"username\":\"$PLATFORM_USER\",\"password\":\"$PLATFORM_PASS\"}"
+```
+
+成功返回 `{"code":0,...}` 并下发 `SESSIONID` cookie（有效期 2 天）；失败返回 `{"code":10105,"msg":"login failed"}`。注意 `POST /api/login/portal` 是门户免登录接口，用账号口令调用同样报 `10105`。
+
+### 查题
+
+| 端点 | 方法 | 说明 |
+| --- | --- | --- |
+| `/api/course?ID=<courseID>&pwd=&isMulEnv=0` | GET | 课程详情与章节列表（`sections[]`，含 `questionGroups[].questionIDs`、`experimentID`、附件 `sectionFiles`），实测 `ID=1639` |
+| `/api/section?ID=<sid>` | GET | 单个章节详情 |
+| `/api/student/newTestPaper?sectionID=<sid>&contestMode=0` | GET | 题面。`answers[].questionContent` 是 JSON 字符串（含 `content` / `options`）；`questionType`：1 填空、2 单选、3 多选、4 代码/Flag 题 |
+| `/api/student/section/file/<文件名>?ID=<sid>&decryptStr=` | GET | 下载章节附件（题面素材 `.md`、`challenge.elf` 等）；同 URL 用 HEAD 可探测附件是否存在 |
+
+当前课程 `1639` 共 41 个章节（40 道题 + 课程说明），每个题章节 = 3 单选 + 1 多选 + 1 道实战 Flag 题。
+
+### 实例（靶机）
+
+| 端点 | 方法 | 说明 |
+| --- | --- | --- |
+| `/api/student/environments?offset=0&limit=10&content=` | GET | 我的环境列表（`environments[]`：`id` / `title` / `comment`） |
+| `/api/student/instances?offset=0&limit=10&ID=<envID>` | GET | 环境下的实例（`name`、`podID`、`state`、`image`、`portInfos` 端口映射、`timeout`） |
+| `/api/vm/action` | POST | 实例操作，body `{"name":"<podID>","labID":<envID>,"action":"start"\|"reboot"\|"state"\|"destroy","vmType":2}` |
+| `/api/student/lab/stopContainer` | PUT | 停止容器，body `{"Name":..,"LabID":..,"Action":..,"VmType":..}` |
+| `/api/student/lab/vm` | GET | 查询章节实验环境，参数 `ID`（章节 ID）、`questionID`、`constMode`、`isMulEnv`；该章节没有实验环境时 `environment` 为 `null` |
+| `/api/student/lab/vm` | POST | 创建/启动章节实验环境，body `{sectionID,labNumber,constMode,isMulEnv,envID}` |
+
+```bash
+# 查询实例状态（只读；先用 environments / instances 拿到 podID 与端口映射）
+curl -sS -k --noproxy '*' -m 25 -b .local/vmc-cookies.txt \
+  -X POST "$VMC_BASE/api/vm/action" -H 'Content-Type: application/json' \
+  -d '{"name":"<podID>","labID":<envID>,"action":"state","vmType":2}'
+# 启动/重启/销毁：把 action 换成 start / reboot / destroy，其余字段不变
+```
+
+- 实例操作用 `podID`（不是页面显示的 `name`），`labID` 填环境 ID（`environments[].id`），`vmType` 目前为 `2`；用 `name` 或 `labID=0` 会返回 `{"code":10000,"msg":"record not found"}`。
+- 访问方式：容器端口映射到宿主机 `172.17.0.13`，按 `portInfos` 用 `http://<hostIP>:<publishedPort>` 访问（22 → SSH，80 → HTTP）。环境名通常对应题章节编号，例如 `C077-G3-F` → `http://172.17.0.13:12031/`。
+- 课程 `1639` 实测各章节的 `lab/vm` 查询都返回 `environment: null`，靶机实例统一在「我的实例」里按环境管理（账号下现有 `DVWA实验`、`C077-G3-F` 两个环境）。
+
+### 网页入口
+
+- 学生中心 →「我的实例」：`/student/vm`（启动 / 重启 / 停止 / 销毁实例，查看端口映射）
+- 课程页：`/student/course/<courseID>`（章节列表，如 `/student/course/1639`）
+- 答题页：`/student/course/answer/<sectionID>`
