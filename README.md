@@ -24,7 +24,16 @@ CyberSecurity_3/
 ├── 1-2/                    # 第 1 次作业第 2 题
 │   ├── writeup.md          # 题解文档
 │   └── screenshots/        # 解题过程截图
-└── 1-3/                    # 第 1 次作业第 3 题
+├── 1-3/                    # 第 1 次作业第 3 题
+│   ├── writeup.md          # 题解文档
+│   └── screenshots/        # 解题过程截图
+├── 1-4/                    # 第 1 次作业第 4 题
+│   ├── writeup.md          # 题解文档
+│   └── screenshots/        # 解题过程截图
+├── 2-1/                    # 第 2 次作业第 1 题
+│   ├── writeup.md          # 题解文档
+│   └── screenshots/        # 解题过程截图
+└── 2-2/                    # 第 2 次作业第 2 题
     ├── writeup.md          # 题解文档
     └── screenshots/        # 解题过程截图
 ```
@@ -80,3 +89,6 @@ Connection details and credentials for the course Q&A platform live only in the 
 - [x] 1-1 仿冒官方账号读私信（Unicode 归一化不一致 / 全角字符绕过）
 - [x] 1-2 客服中心工单系统（存储型 XSS / 窃取内部工单密钥）
 - [x] 1-3 开放平台 OAuth 2.0（无确认页静默授权 / scope 越权窃取官方账号私密资料）
+- [x] 1-4 举报中心·社交平台（同源 JSONP callback 注入绕过 CSP / 窃取审核后台内部凭据）
+- [x] 2-1 权限提升维持-G1（sudo NOPASSWD 放行 find / GTFOBins 提权读 /flag）
+- [x] 2-2 权限提升维持-G2（SUID svcstat 相对路径调用 ps / PATH 劫持提权读 /flag）
