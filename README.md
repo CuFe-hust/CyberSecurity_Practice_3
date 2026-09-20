@@ -36,7 +36,13 @@ CyberSecurity_3/
 ├── 2-2/                    # 第 2 次作业第 2 题
 │   ├── writeup.md          # 题解文档
 │   └── screenshots/        # 解题过程截图
-└── 2-3/                    # 第 2 次作业第 3 题
+├── 2-3/                    # 第 2 次作业第 3 题
+│   ├── writeup.md          # 题解文档
+│   └── screenshots/        # 解题过程截图
+├── 2-4/                    # 第 2 次作业第 4 题
+│   ├── writeup.md          # 题解文档
+│   └── screenshots/        # 解题过程截图
+└── 3-1/                    # 第 3 次作业第 1 题
     ├── writeup.md          # 题解文档
     └── screenshots/        # 解题过程截图
 ```
@@ -96,3 +102,5 @@ Connection details and credentials for the course Q&A platform live only in the 
 - [x] 2-1 权限提升维持-G1（sudo NOPASSWD 放行 find / GTFOBins 提权读 /flag）
 - [x] 2-2 权限提升维持-G2（SUID svcstat 相对路径调用 ps / PATH 劫持提权读 /flag）
 - [x] 2-3 权限提升维持-G3（root cron 在可写目录执行 tar 通配符 / 选项注入提权读 /flag）
+- [x] 2-4 权限提升维持-G4（root 常驻脚本检查与使用分离 / 符号链接 TOCTOU 竞态 + rename 原子替换提权读 /flag）
+- [x] 3-1 免杀 payload 制作-G1（PHP eval + 关键词黑名单 / 字符串拆分、chr 编码与动态调用绕过读 flag）
