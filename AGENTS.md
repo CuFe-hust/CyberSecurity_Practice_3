@@ -126,6 +126,8 @@ await browser.close();
 
 ## 工作流程
 
+完整的三 Agent 复用流程（启动实例 → 解题提交 → 写 writeup，含向教学大模型提问）见下一节。
+
 ### 角色 A（Writeup 撰写者）
 
 1. 用户口述/粘贴解题过程与截图路径 → AI 核对图片
@@ -138,6 +140,82 @@ await browser.close();
 1. 用户描述题目 → AI 与用户讨论、给出思路提示
 2. 用户自行操作或授权 AI 操作 → 逐步推进，保留关键过程与 Flag
 3. 题目完成后：提醒用户可将过程交给角色 A 整理 writeup（本题若有新完成题目，同时提醒更新 README 进度列表）
+
+## 完整复用流程：启动实例 → 解题提交 → 写 writeup（三 Agent 协作）
+
+2-3（课程第 8 节）按该流程跑通，同系列后续题目可直接套用：主 Agent 负责侦察、启动实例与汇总核验，另派两个子 Agent 分别「解题」与「写 writeup」。
+
+### 0. 准备
+
+```bash
+set -a; . .local/qa-platform.env; . .local/vmc-platform.env; set +a
+# VMC cookie 过期（约 2 天）时重新登录
+curl -sS -k --noproxy '*' -m 25 -c .local/vmc-cookies.txt -X POST "$VMC_BASE/api/login" \
+  -H 'Content-Type: application/json' \
+  --data "{\"username\":\"$PLATFORM_USER\",\"password\":\"$PLATFORM_PASS\"}"
+```
+
+### 1. 定位章节与题面
+
+- `GET $VMC_BASE/api/course?ID=1639&pwd=&isMulEnv=0` → `course.sections[]`，按 `title` 找章节，记录 `id`（sectionID）、`number` 与 `questionGroups[].questionIDs`（各题 questionID）。
+- 课程 `number` 与仓库目录对应：`6→2-1`、`7→2-2`、`8→2-3`、`9→2-4`（同系列 G1–G4 依次类推）。
+- `GET $VMC_BASE/api/student/newTestPaper?sectionID=<sid>&contestMode=0` → `answers[]`：`questionType` 1 填空、2 单选、3 多选、4 代码/Flag；`questionContent` 是 JSON 字符串（含 `content` / `options`）。
+
+### 2. 启动靶机实例
+
+```bash
+# a) 查章节实验环境，记录 environment.id（envID，如 C080-G3-F → 1399）
+curl -sS -k --noproxy '*' -m 25 -b .local/vmc-cookies.txt \
+  "$VMC_BASE/api/student/lab/vm?ID=<sectionID>&questionID=<flagQuestionID>&constMode=0&isMulEnv=0"
+# b) 创建/启动实例：labNumber 必须填 0（填 1 会报 "labNumber is greater than or equal to the length of the configs"）
+curl -sS -k --noproxy '*' -m 90 -b .local/vmc-cookies.txt -X POST "$VMC_BASE/api/student/lab/vm" \
+  -H 'Content-Type: application/json' \
+  --data '{"sectionID":<sid>,"labNumber":0,"constMode":0,"isMulEnv":0,"envID":<envID>}'
+# c) 轮询实例，直到 state=Running，记录 podID 与 portInfos 端口映射
+curl -sS -k --noproxy '*' -m 25 -b .local/vmc-cookies.txt \
+  "$VMC_BASE/api/student/instances?offset=0&limit=10&ID=<envID>"
+```
+
+- 访问地址 `http://172.17.0.13:<publishedPort>`：80 → ttyd Web 终端（打开即已登录的低权限 shell），22 → SSH（密码常未知，一般不用）。
+- 实例有保存时限（`saveTime` 约 3 小时）会自动回收；交付前要确保 Flag、截图、判分都已核对完成。
+- 终端驱动：`python3 .local/process/ttyd_drive.py <host>:<port> "<命令>"`（WebSocket）；截图时用无头浏览器直接在该页面键入命令，保证截图与过程一致（见「Agent 自动截图方法」）。
+
+### 3. 派 Agent 1：解题 + 提交 + 问大模型 + 截图记录
+
+任务书需写清：
+
+- 题面 / 题型 / flag 题要求、靶机地址与终端驱动方式；
+- 先枚举后利用（`id` → `sudo -n -l` → SUID / capabilities → cron / 进程 / 可写目录），**失败尝试也必须截图与记录**；
+- 向教学问答平台提 3–6 个问题：漏洞原理、机制细节、加固与应急排查各有覆盖；截图命名 `NN-AI问答-<主题>.png`；
+- 提交答案（见下方「答案提交与判分」）并用 `answerHistory` 复核；
+- 产出：`<目录>/screenshots/NN-步骤简述.png`、原始记录 `.local/process/<目录>-ctf-process.md`、问答原文 `.local/process/<目录>-qa-transcript.json`（后两者不入库）。
+
+- 常见坑：ttyd 的 bash 会做历史展开（`!` 触发，必要时先 `set +H`）；无头浏览器键入长命令偶发吞引号/字符，命令尽量简单 ASCII，截图前核对回显。
+
+### 4. 派 Agent 2：写 writeup
+
+- 输入（只读）：Agent 1 的原始记录、问答原文与截图；
+- 输出 `<目录>/writeup.md`，按本文件模板章节撰写；**默认不写选择题解析**（用户另有要求除外），选择题只在「环境信息」备注提交与判分结果；
+- 失败尝试如实保留；逐步核对命令/输出与截图的对应关系，发现矛盾以截图/实测为准并在交付说明中指出。
+
+### 5. 主 Agent 汇总核验与入库
+
+- 核验：截图引用是否全部存在且无多余文件、`answerHistory` 是否全部判对、Flag 在原始记录与 writeup 中是否一致；
+- README 进度列表默认提醒用户更新；用户明确要求时可由 Agent 更新（目录结构区块同步补一行）；
+- 用户确认后入库：`git add -A && git commit -m "Add writeup for challenge X-Y: <一句话主题>" && git push`。
+
+### 答案提交与判分（实证格式）
+
+`POST $VMC_BASE/api/student/submitAnswers`，multipart 多个 `answers` 字段，值为 **JSON 字符串**：
+
+| 题型 | answer 值 |
+| --- | --- |
+| 单选（type 2） | `{"answer":["C"],"num":1}` |
+| 多选（type 3） | `{"answer":["A","B","D"],"num":3}` |
+| 填空（type 1） | `{"num":3,"answer":["","","vmc{...}"]}`（平台会把中间位规范化为 `"true"`） |
+
+- 纯字母/纯文本提交会被判错，填空题的值被丢弃为 `{"num":0,"answer":["",""]}`；
+- 判分以 `GET $VMC_BASE/api/student/get/answerHistory?sectionID=<sid>&contestMode=0` 的 `isCorrect` 为准；顶层 `scoreRate` 常显示 0、`testPaper`/`selfJudge` 不返回分数，均属平台正常现象。
 
 ## 其他约定
 
