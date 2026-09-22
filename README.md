@@ -48,7 +48,10 @@ CyberSecurity_3/
 ├── 3-2/                    # 第 3 次作业第 2 题
 │   ├── writeup.md          # 题解文档
 │   └── screenshots/        # 解题过程截图
-└── 3-3/                    # 第 3 次作业第 3 题
+├── 3-3/                    # 第 3 次作业第 3 题
+│   ├── writeup.md          # 题解文档
+│   └── screenshots/        # 解题过程截图
+└── 3-4/                    # 第 3 次作业第 4 题
     ├── writeup.md          # 题解文档
     └── screenshots/        # 解题过程截图
 ```
@@ -112,3 +115,4 @@ Connection details and credentials for the course Q&A platform live only in the 
 - [x] 3-1 免杀 payload 制作-G1（PHP eval + 关键词黑名单 / 字符串拆分、chr 编码与动态调用绕过读 flag）
 - [x] 3-2 免杀 payload 制作-G2（表达式求值台字母数字黑名单 / 纯符号 XOR 构造函数名 + 变量函数读出 flag）
 - [x] 3-3 免杀 payload 制作-G3（沙箱试跑 + 正式执行双阶段 / 环境变量指纹识别沙箱与条件触发反沙箱读 flag）
+- [x] 3-4 免杀 payload 制作-G4（37 条静态特征库子串匹配 / 压缩+十六进制自解密载荷 + 拆分解码函数名绕过读 flag）
