@@ -42,7 +42,13 @@ CyberSecurity_3/
 ├── 2-4/                    # 第 2 次作业第 4 题
 │   ├── writeup.md          # 题解文档
 │   └── screenshots/        # 解题过程截图
-└── 3-1/                    # 第 3 次作业第 1 题
+├── 3-1/                    # 第 3 次作业第 1 题
+│   ├── writeup.md          # 题解文档
+│   └── screenshots/        # 解题过程截图
+├── 3-2/                    # 第 3 次作业第 2 题
+│   ├── writeup.md          # 题解文档
+│   └── screenshots/        # 解题过程截图
+└── 3-3/                    # 第 3 次作业第 3 题
     ├── writeup.md          # 题解文档
     └── screenshots/        # 解题过程截图
 ```
@@ -104,3 +110,5 @@ Connection details and credentials for the course Q&A platform live only in the 
 - [x] 2-3 权限提升维持-G3（root cron 在可写目录执行 tar 通配符 / 选项注入提权读 /flag）
 - [x] 2-4 权限提升维持-G4（root 常驻脚本检查与使用分离 / 符号链接 TOCTOU 竞态 + rename 原子替换提权读 /flag）
 - [x] 3-1 免杀 payload 制作-G1（PHP eval + 关键词黑名单 / 字符串拆分、chr 编码与动态调用绕过读 flag）
+- [x] 3-2 免杀 payload 制作-G2（表达式求值台字母数字黑名单 / 纯符号 XOR 构造函数名 + 变量函数读出 flag）
+- [x] 3-3 免杀 payload 制作-G3（沙箱试跑 + 正式执行双阶段 / 环境变量指纹识别沙箱与条件触发反沙箱读 flag）
