@@ -65,6 +65,16 @@ vmc{nCU58nHL381SWucs9XV3ztEUhu2HDlK6}
 
 ![纯符号异或变量函数读出 flag](screenshots/03-纯符号异或变量函数读出flag.png)
 
+### 5. 教学问答与平台判分（截图 04、05）
+
+围绕本题向教学问答平台提问了 4 个问题，分别涉及字符串 XOR、变量函数、HTTP URL 编码和防御建议；问答页面截图如下，原始问答另存于 `.local/process/3-2-qa-transcript.json`。
+
+![教学问答记录](screenshots/04-AI问答-四个主题.png)
+
+平台提交的 3 道单选、1 道多选和 1 道 Flag 题均显示“作答正确”，截图如下。
+
+![平台判分：五题全部正确](screenshots/05-平台判分-五题全部正确.png)
+
 ## Flag
 
 ```text
