@@ -57,7 +57,10 @@ CyberSecurity_3/
 ├── 4-1/                    # 第 4 次作业第 1 题
 │   ├── writeup.md          # 题解文档
 │   └── screenshots/        # 解题过程截图
-└── 4-2/                    # 第 4 次作业第 2 题
+├── 4-2/                    # 第 4 次作业第 2 题
+│   ├── writeup.md          # 题解文档
+│   └── screenshots/        # 解题过程截图
+└── 4-3/                    # 第 4 次作业第 3 题
     ├── writeup.md          # 题解文档
     └── screenshots/        # 解题过程截图
 ```
@@ -124,3 +127,4 @@ Connection details and credentials for the course Q&A platform live only in the 
 - [x] 3-4 免杀 payload 制作-G4（37 条静态特征库子串匹配 / 压缩+十六进制自解密载荷 + 拆分解码函数名绕过读 flag）
 - [x] 4-1 终端EDR绕过-G1（命令行 18 条子串黑名单 / 反斜杠转义 + 通配符绕过读 flag）
 - [x] 4-2 终端EDR绕过-G2（LD_PRELOAD 拦截 execve 的进程行为监控 / shell 内建 read + 输入重定向零子进程读 flag）
+- [x] 4-3 终端EDR绕过-G3（LD_PRELOAD 劫持 5 个 libc 文件访问符号 / 内联汇编直发 syscall 绕过用户态 hook 读 flag）
