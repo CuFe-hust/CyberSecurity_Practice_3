@@ -63,7 +63,10 @@ CyberSecurity_3/
 ├── 4-3/                    # 第 4 次作业第 3 题
 │   ├── writeup.md          # 题解文档
 │   └── screenshots/        # 解题过程截图
-└── 4-4/                    # 第 4 次作业第 4 题
+├── 4-4/                    # 第 4 次作业第 4 题
+│   ├── writeup.md          # 题解文档
+│   └── screenshots/        # 解题过程截图
+└── 5-1/                    # 第 5 次作业第 1 题
     ├── writeup.md          # 题解文档
     └── screenshots/        # 解题过程截图
 ```
@@ -132,3 +135,4 @@ Connection details and credentials for the course Q&A platform live only in the 
 - [x] 4-2 终端EDR绕过-G2（LD_PRELOAD 拦截 execve 的进程行为监控 / shell 内建 read + 输入重定向零子进程读 flag）
 - [x] 4-3 终端EDR绕过-G3（LD_PRELOAD 劫持 5 个 libc 文件访问符号 / 内联汇编直发 syscall 绕过用户态 hook 读 flag）
 - [x] 4-4 终端EDR绕过-G4（ptrace 在 syscall 边界审计 / 相对路径击穿字面量判定 + openat2 系统调用号缺口读 flag）
+- [x] 5-1 DEP数据执行保护利用-G1（DEP 开启下 ret2text 直跳 .text 内导出函数 get_flag / 68 字节 NUL 截断的 1 字节部分覆盖 + 一次性 token 兑换 flag）
