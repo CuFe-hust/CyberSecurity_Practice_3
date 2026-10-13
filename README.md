@@ -69,7 +69,16 @@ CyberSecurity_3/
 ├── 5-1/                    # 第 5 次作业第 1 题
 │   ├── writeup.md          # 题解文档
 │   └── screenshots/        # 解题过程截图
-└── 5-2/                    # 第 5 次作业第 2 题
+├── 5-2/                    # 第 5 次作业第 2 题
+│   ├── writeup.md          # 题解文档
+│   └── screenshots/        # 解题过程截图
+├── 5-3/                    # 第 5 次作业第 3 题
+│   ├── writeup.md          # 题解文档
+│   └── screenshots/        # 解题过程截图
+├── 5-4/                    # 第 5 次作业第 4 题
+│   ├── writeup.md          # 题解文档
+│   └── screenshots/        # 解题过程截图
+└── 6-1/                    # 第 6 次作业第 1 题
     ├── writeup.md          # 题解文档
     └── screenshots/        # 解题过程截图
 ```
@@ -140,3 +149,6 @@ Connection details and credentials for the course Q&A platform live only in the 
 - [x] 4-4 终端EDR绕过-G4（ptrace 在 syscall 边界审计 / 相对路径击穿字面量判定 + openat2 系统调用号缺口读 flag）
 - [x] 5-1 DEP数据执行保护利用-G1（DEP 开启下 ret2text 直跳 .text 内导出函数 get_flag / 68 字节 NUL 截断的 1 字节部分覆盖 + 一次性 token 兑换 flag）
 - [x] 5-2 DEP数据执行保护利用-G2（get_flag 带参数 / 132 偏移 ret2text 布置 cdecl 参数 0xdeadbeef 命中，末尾 NUL 只覆盖不控参故部分覆盖失效）
+- [x] 5-3 DEP数据执行保护利用-G3（DEP 下 ROP 链：set_key(0xcafebabe) 解锁 + pop eax;ret 栈平衡 再跳 get_flag）
+- [x] 5-4 DEP数据执行保护利用-G4（fread 512 字节 stage1 + 132 偏移 ret2text / 另实测 ROP 调 VirtualProtect 包装函数改页权限）
+- [x] 6-1 GS缓冲区安全检查利用-G1（banner 泄漏缓冲区地址与 __security_cookie / 回填 cookie^EBP 绕过 /GS 后 ret 到 get_flag）
