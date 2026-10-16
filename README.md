@@ -78,7 +78,16 @@ CyberSecurity_3/
 ├── 5-4/                    # 第 5 次作业第 4 题
 │   ├── writeup.md          # 题解文档
 │   └── screenshots/        # 解题过程截图
-└── 6-1/                    # 第 6 次作业第 1 题
+├── 6-1/                    # 第 6 次作业第 1 题
+│   ├── writeup.md          # 题解文档
+│   └── screenshots/        # 解题过程截图
+├── 6-2/                    # 第 6 次作业第 2 题
+│   ├── writeup.md          # 题解文档
+│   └── screenshots/        # 解题过程截图
+├── 6-3/                    # 第 6 次作业第 3 题
+│   ├── writeup.md          # 题解文档
+│   └── screenshots/        # 解题过程截图
+└── 6-4/                    # 第 6 次作业第 4 题
     ├── writeup.md          # 题解文档
     └── screenshots/        # 解题过程截图
 ```
@@ -152,3 +161,6 @@ Connection details and credentials for the course Q&A platform live only in the 
 - [x] 5-3 DEP数据执行保护利用-G3（DEP 下 ROP 链：set_key(0xcafebabe) 解锁 + pop eax;ret 栈平衡 再跳 get_flag）
 - [x] 5-4 DEP数据执行保护利用-G4（fread 512 字节 stage1 + 132 偏移 ret2text / 另实测 ROP 调 VirtualProtect 包装函数改页权限）
 - [x] 6-1 GS缓冲区安全检查利用-G1（banner 泄漏缓冲区地址与 __security_cookie / 回填 cookie^EBP 绕过 /GS 后 ret 到 get_flag）
+- [x] 6-2 GS缓冲区安全检查利用-G2（printf(buf) 格式串漏洞 / 第 81 个 %p 泄漏本帧 cookie，回填后 gets 溢出偏移 64 读 flag）
+- [x] 6-3 GS缓冲区安全检查利用-G3（函数指针 [EBP-8] 被 gets 改写，call 早于 __security_check_cookie 且 get_flag 内 ExitProcess 使校验永不执行）
+- [x] 6-4 GS缓冲区安全检查利用-G4（无 cookie 薄包装 printf 跨帧泄漏父帧 EBP / banner 泄漏 cookie，回填后 gets 溢出偏移 320 读 flag）
