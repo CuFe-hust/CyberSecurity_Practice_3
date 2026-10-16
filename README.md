@@ -96,7 +96,16 @@ CyberSecurity_3/
 ├── 7-2/                    # 第 7 次作业第 2 题
 │   ├── writeup.md          # 题解文档
 │   └── screenshots/        # 解题过程截图
-└── 7-3/                    # 第 7 次作业第 3 题
+├── 7-3/                    # 第 7 次作业第 3 题
+│   ├── writeup.md          # 题解文档
+│   └── screenshots/        # 解题过程截图
+├── 7-4/                    # 第 7 次作业第 4 题
+│   ├── writeup.md          # 题解文档
+│   └── screenshots/        # 解题过程截图
+├── 8-1/                    # 第 8 次作业第 1 题
+│   ├── writeup.md          # 题解文档
+│   └── screenshots/        # 解题过程截图
+└── 8-2/                    # 第 8 次作业第 2 题
     ├── writeup.md          # 题解文档
     └── screenshots/        # 解题过程截图
 ```
@@ -176,3 +185,6 @@ Connection details and credentials for the course Q&A platform live only in the 
 - [x] 7-1 安全补丁对比分析-G1（v1 用 gets 读 64B 用户名 / 偏移 72 单次 ret2win 到 0x4011d6；补丁 gets→fgets）
 - [x] 7-2 安全补丁对比分析-G2（v1 printf(user_buf) 格式串任意写 / %hhn 四字节改写 .data 函数指针为 win 0x401296；补丁 printf→printf("%s")）
 - [x] 7-3 安全补丁对比分析-G3（v1 delete 后悬空指针 + tcache 复用 / alloc_data 写回函数指针 use 即调用；补丁 delete 置位 + use 存活校验两处协同）
+- [x] 7-4 安全补丁对比分析-G4（v1 用 (uint16_t)(w*h) 窄分配 + 64 位乘积宽拷贝 ⇒ 堆溢出改写相邻函数指针为 win 0x4013A2；补丁加 packet too large 护栏 + 完整乘积分配）
+- [x] 8-1 软件逆向静态分析-G1（静态链接 stripped 校验器 / 长度 42 且 input[i]^0xAA==target[i]，.rodata 数组异或还原 flag）
+- [x] 8-2 软件逆向静态分析-G2（PE32+ x64 校验器 / 识别 RC4 KSA+PRGA，.rdata 8 字节密钥 2f9e4ac37185d61b 解密 42 字节密文得 flag）
