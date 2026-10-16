@@ -87,7 +87,16 @@ CyberSecurity_3/
 ├── 6-3/                    # 第 6 次作业第 3 题
 │   ├── writeup.md          # 题解文档
 │   └── screenshots/        # 解题过程截图
-└── 6-4/                    # 第 6 次作业第 4 题
+├── 6-4/                    # 第 6 次作业第 4 题
+│   ├── writeup.md          # 题解文档
+│   └── screenshots/        # 解题过程截图
+├── 7-1/                    # 第 7 次作业第 1 题
+│   ├── writeup.md          # 题解文档
+│   └── screenshots/        # 解题过程截图
+├── 7-2/                    # 第 7 次作业第 2 题
+│   ├── writeup.md          # 题解文档
+│   └── screenshots/        # 解题过程截图
+└── 7-3/                    # 第 7 次作业第 3 题
     ├── writeup.md          # 题解文档
     └── screenshots/        # 解题过程截图
 ```
@@ -164,3 +173,6 @@ Connection details and credentials for the course Q&A platform live only in the 
 - [x] 6-2 GS缓冲区安全检查利用-G2（printf(buf) 格式串漏洞 / 第 81 个 %p 泄漏本帧 cookie，回填后 gets 溢出偏移 64 读 flag）
 - [x] 6-3 GS缓冲区安全检查利用-G3（函数指针 [EBP-8] 被 gets 改写，call 早于 __security_check_cookie 且 get_flag 内 ExitProcess 使校验永不执行）
 - [x] 6-4 GS缓冲区安全检查利用-G4（无 cookie 薄包装 printf 跨帧泄漏父帧 EBP / banner 泄漏 cookie，回填后 gets 溢出偏移 320 读 flag）
+- [x] 7-1 安全补丁对比分析-G1（v1 用 gets 读 64B 用户名 / 偏移 72 单次 ret2win 到 0x4011d6；补丁 gets→fgets）
+- [x] 7-2 安全补丁对比分析-G2（v1 printf(user_buf) 格式串任意写 / %hhn 四字节改写 .data 函数指针为 win 0x401296；补丁 printf→printf("%s")）
+- [x] 7-3 安全补丁对比分析-G3（v1 delete 后悬空指针 + tcache 复用 / alloc_data 写回函数指针 use 即调用；补丁 delete 置位 + use 存活校验两处协同）
