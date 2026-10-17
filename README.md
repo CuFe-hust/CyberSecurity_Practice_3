@@ -105,7 +105,13 @@ CyberSecurity_3/
 ├── 8-1/                    # 第 8 次作业第 1 题
 │   ├── writeup.md          # 题解文档
 │   └── screenshots/        # 解题过程截图
-└── 8-2/                    # 第 8 次作业第 2 题
+├── 8-2/                    # 第 8 次作业第 2 题
+│   ├── writeup.md          # 题解文档
+│   └── screenshots/        # 解题过程截图
+├── 8-3/                    # 第 8 次作业第 3 题
+│   ├── writeup.md          # 题解文档
+│   └── screenshots/        # 解题过程截图
+└── 8-4/                    # 第 8 次作业第 4 题
     ├── writeup.md          # 题解文档
     └── screenshots/        # 解题过程截图
 ```
@@ -188,3 +194,5 @@ Connection details and credentials for the course Q&A platform live only in the 
 - [x] 7-4 安全补丁对比分析-G4（v1 用 (uint16_t)(w*h) 窄分配 + 64 位乘积宽拷贝 ⇒ 堆溢出改写相邻函数指针为 win 0x4013A2；补丁加 packet too large 护栏 + 完整乘积分配）
 - [x] 8-1 软件逆向静态分析-G1（静态链接 stripped 校验器 / 长度 42 且 input[i]^0xAA==target[i]，.rodata 数组异或还原 flag）
 - [x] 8-2 软件逆向静态分析-G2（PE32+ x64 校验器 / 识别 RC4 KSA+PRGA，.rdata 8 字节密钥 2f9e4ac37185d61b 解密 42 字节密文得 flag）
+- [x] 8-3 软件逆向静态分析-G3（PE32+ 校验器 / 逐字节 F(x)=S(ROR3(ROL4(x)))，逆序求逆 F⁻¹=ROL4∘ROL3∘S⁻¹ 还原 flag）
+- [x] 8-4 软件逆向静态分析-G4（3 组 je+jne 同目标花指令令线性反汇编错位 / Python NOP 去花后得 input[i]^0x7C==tab[i]，qemu-gdb 动态取表互证）
